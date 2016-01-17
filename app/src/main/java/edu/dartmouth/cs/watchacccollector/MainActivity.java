@@ -63,6 +63,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
      *
      */
     private int sampleCount = 0;
+    boolean hasAChance = false;
     private ArrayList<Double> xSamples = null;
     private ArrayList<Double> ySamples = null;
     private ArrayList<Double> zSamples = null;
@@ -149,6 +150,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
      */
     private void startAccelerometer() {
         isAccelRunning = true;
+        hasAChance = false;
         Log.d("Start", "start!!");
         mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST);
         //Set up filter
@@ -218,7 +220,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             ySamples = new ArrayList<Double>();
             zSamples = new ArrayList<Double>();
         }
-        if (!isAccelRunning) {
+        if (!isAccelRunning || sampleCount >= 200) {
             mSamples = new ArrayList<Double>();
             for (int i=0; i<xSamples.size(); i++) {
                 mSamples.add(Math.sqrt(Math.pow(xSamples.get(i), 2)
@@ -245,7 +247,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             Log.d("upper", String.valueOf(upperThreshold));
             Log.d("bottom", String.valueOf(bottomThreshold));
 
-            boolean hasAChance = true;
             for (int i=1; i<mSamples.size(); i++) {
                 if (mSamples.get(i) > upperThreshold) {
                     if (hasAChance) {
@@ -269,7 +270,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             zSamples.add(filt_acc_z);
             sampleCount ++;
         }
-        return addSteps * 2;
+        return addSteps;
     }
 
 
