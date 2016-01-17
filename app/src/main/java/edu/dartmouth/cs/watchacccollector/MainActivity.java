@@ -220,13 +220,13 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             ySamples = new ArrayList<Double>();
             zSamples = new ArrayList<Double>();
         }
-        if (!isAccelRunning || sampleCount >= 200) {
+        if (!isAccelRunning || sampleCount >= 50) {
             mSamples = new ArrayList<Double>();
             for (int i=0; i<xSamples.size(); i++) {
                 mSamples.add(Math.sqrt(Math.pow(xSamples.get(i), 2)
                         + Math.pow(ySamples.get(i), 2) + Math.pow(zSamples.get(i), 2)));
             }
-            mSamples = smooth(mSamples, 10);
+            mSamples = smooth(mSamples, 2);
             ArrayList<Double> peaks = findPeaks(mSamples);
             ArrayList<Double> valleys = findValleys(mSamples);
             double meanOfPeaks = getMean(peaks);
