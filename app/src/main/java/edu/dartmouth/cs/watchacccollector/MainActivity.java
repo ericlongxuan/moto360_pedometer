@@ -62,8 +62,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     /*
      *
      */
-    private int sampleCount = 0;
-    boolean hasAChance = false;
+    private int windowSampleCount = 0;
+    private int allSampleCount = 0;
+    boolean hasAChanceWhenLastWindowEnds = true;
     private ArrayList<Double> xSamples = null;
     private ArrayList<Double> ySamples = null;
     private ArrayList<Double> zSamples = null;
@@ -150,7 +151,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
      */
     private void startAccelerometer() {
         isAccelRunning = true;
-        hasAChance = false;
+        hasAChanceWhenLastWindowEnds = true;
         Log.d("Start", "start!!");
         mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST);
         //Set up filter
@@ -174,6 +175,11 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         filter = null;
 
         stepCount += detectSteps(0, 0, 0);
+        xSamples.clear();
+        ySamples.clear();
+        zSamples.clear();
+        mSamples.clear();
+        allSampleCount = 0;
         sendUpdatedStepCountToUI();
     }
 
@@ -219,57 +225,53 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             xSamples = new ArrayList<Double>();
             ySamples = new ArrayList<Double>();
             zSamples = new ArrayList<Double>();
-        }
-        if (!isAccelRunning || sampleCount >= 50) {
             mSamples = new ArrayList<Double>();
-            for (int i=0; i<xSamples.size(); i++) {
-                mSamples.add(Math.sqrt(Math.pow(xSamples.get(i), 2)
-                        + Math.pow(ySamples.get(i), 2) + Math.pow(zSamples.get(i), 2)));
-            }
-            mSamples = smooth(mSamples, 2);
-            ArrayList<Double> peaks = findPeaks(mSamples);
-            ArrayList<Double> valleys = findValleys(mSamples);
+        }
+        xSamples.add(filt_acc_x);
+        ySamples.add(filt_acc_y);
+        zSamples.add(filt_acc_z);
+        mSamples.add(Math.sqrt(Math.pow(filt_acc_x, 2)
+                + Math.pow(filt_acc_y, 2) + Math.pow(filt_acc_z, 2)));
+        windowSampleCount ++;
+        allSampleCount ++;
+
+        if (!isAccelRunning || windowSampleCount >= 50) {
+            boolean hasAChance = hasAChanceWhenLastWindowEnds;
+            ArrayList<Double> smoothedMSamples = linearSmooth(mSamples, allSampleCount - windowSampleCount, 2);
+            ArrayList<Double> peaks = findPeaks(smoothedMSamples);
+            ArrayList<Double> valleys = findValleys(smoothedMSamples);
             double meanOfPeaks = getMean(peaks);
             double meanOfValleys = getMean(valleys);
-            Log.d("meanOfPeaks", String.valueOf(meanOfPeaks));
-            Log.d("meanOfValleys", String.valueOf(meanOfValleys));
+            // Log.d("meanOfPeaks", String.valueOf(meanOfPeaks));
+            // Log.d("meanOfValleys", String.valueOf(meanOfValleys));
             if (meanOfPeaks - meanOfValleys < 0.5) {
-                xSamples.clear();
-                ySamples.clear();
-                zSamples.clear();
-                sampleCount = 0;
+                windowSampleCount = 0;
                 return 0;
             }
 
-            double upperThreshold = meanOfPeaks - 0.25 * (meanOfPeaks - meanOfValleys);
-            double bottomThreshold = meanOfValleys + 0.25 * (meanOfPeaks - meanOfValleys);
+            //double upperThreshold = meanOfPeaks - 0.25 * (meanOfPeaks - meanOfValleys);
+            //double bottomThreshold = meanOfValleys + 0.25 * (meanOfPeaks - meanOfValleys);
+            double middleThreshold = (meanOfPeaks + meanOfValleys) / 2;
+            //Log.d("upper", String.valueOf(upperThreshold));
+            //Log.d("bottom", String.valueOf(bottomThreshold));
 
-            Log.d("upper", String.valueOf(upperThreshold));
-            Log.d("bottom", String.valueOf(bottomThreshold));
-
-            for (int i=1; i<mSamples.size(); i++) {
-                if (mSamples.get(i) > upperThreshold) {
+            for (int i=0; i<smoothedMSamples.size(); i++) {
+                if (smoothedMSamples.get(i) > middleThreshold + 0.5) {
                     if (hasAChance) {
+                        System.out.println("x: " + i +"y: " + smoothedMSamples.get(i));
                         addSteps ++;
                     }
                     hasAChance = false;
                 }
-                if (mSamples.get(i) < bottomThreshold) {
+                if (smoothedMSamples.get(i) < middleThreshold) {
                     hasAChance = true;
                 }
             }
-            xSamples.clear();
-            ySamples.clear();
-            zSamples.clear();
-            sampleCount = 0;
-            Log.d("addSteps", String.valueOf(addSteps));
+            windowSampleCount = 0;
+            hasAChanceWhenLastWindowEnds = hasAChance;
+            // Log.d("addSteps", String.valueOf(addSteps));
         }
-        else {
-            xSamples.add(filt_acc_x);
-            ySamples.add(filt_acc_y);
-            zSamples.add(filt_acc_z);
-            sampleCount ++;
-        }
+        if(addSteps!=0) System.out.println(addSteps);
         return addSteps;
     }
 
@@ -315,21 +317,32 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     }
 
 
-    private ArrayList<Double> smooth(ArrayList<Double> samples, int boundOffset) {
+    private ArrayList<Double> linearSmooth(ArrayList<Double> samples, int fromIndex, int boundOffset) {
         ArrayList<Double> smoothed = new ArrayList<Double>();
         int window = boundOffset * 2 + 1;
-        if (samples.size() < boundOffset * 2 + 1) {
-            return new ArrayList<Double>();
-        }
 
+        // [0 1 2 3 4 5 6 7]
+        // [* * * * * 5 6 7]
         double windowSum = 0;
-        for (int i=0; i<window; i++) {
-            windowSum += samples.get(i);
+
+        int firstSmoothedIndex = 0;
+        // first window sum
+        if (fromIndex < window) {
+            for (int i=0; i<window; i++) {
+                windowSum += samples.get(i);
+            }
+            firstSmoothedIndex = boundOffset;
+        }
+        else {
+            for (int i=fromIndex-window+1; i<fromIndex+1; i++) {
+                windowSum += samples.get(i);
+            }
+            firstSmoothedIndex = fromIndex-boundOffset;
         }
         smoothed.add(windowSum / window);
 
-
-        for (int i=boundOffset * 2 + 1; i<samples.size(); i++) {
+        // from second window sum
+        for (int i=firstSmoothedIndex+boundOffset+1; i<samples.size(); i++) {
             windowSum = windowSum - samples.get(i - window) + samples.get(i);
             smoothed.add(windowSum / window);
         }
