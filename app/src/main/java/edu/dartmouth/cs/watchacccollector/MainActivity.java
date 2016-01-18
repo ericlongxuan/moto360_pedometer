@@ -64,7 +64,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
      */
     private int windowSampleCount = 0;
     private int allSampleCount = 0;
-    boolean hasAChanceWhenLastWindowEnds = true;
+    private int holdingSteps = 0;
+    private boolean hasAChanceWhenLastWindowEnds = true;
+    private int continuousWindows = 0;
     private ArrayList<Double> xSamples = null;
     private ArrayList<Double> ySamples = null;
     private ArrayList<Double> zSamples = null;
@@ -244,8 +246,10 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             double meanOfValleys = getMean(valleys);
             // Log.d("meanOfPeaks", String.valueOf(meanOfPeaks));
             // Log.d("meanOfValleys", String.valueOf(meanOfValleys));
-            if (meanOfPeaks - meanOfValleys < 0.5) {
+            if (meanOfPeaks < 11) {
                 windowSampleCount = 0;
+                continuousWindows = 0;
+                holdingSteps = 0;
                 return 0;
             }
 
@@ -258,8 +262,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             for (int i=0; i<smoothedMSamples.size(); i++) {
                 if (smoothedMSamples.get(i) > middleThreshold + 0.5) {
                     if (hasAChance) {
-                        System.out.println("x: " + i +"y: " + smoothedMSamples.get(i));
-                        addSteps ++;
+                        //System.out.println("x: " + i +"y: " + smoothedMSamples.get(i));
+                        if (smoothedMSamples.get(i) > 11)
+                            addSteps ++;
                     }
                     hasAChance = false;
                 }
@@ -270,9 +275,25 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             windowSampleCount = 0;
             hasAChanceWhenLastWindowEnds = hasAChance;
             // Log.d("addSteps", String.valueOf(addSteps));
+            if(addSteps >= 5)
+                addSteps = 0;
+
+            if (addSteps == 0) {
+                continuousWindows = 0;
+                holdingSteps = 0;
+            }
+            else {
+                continuousWindows += 1;
+                holdingSteps += addSteps;
+            }
+
+            if (continuousWindows >= 3) {
+                addSteps = holdingSteps;
+                holdingSteps = 0;
+                return addSteps;
+            }
         }
-        if(addSteps!=0) System.out.println(addSteps);
-        return addSteps;
+        return 0;
     }
 
 
