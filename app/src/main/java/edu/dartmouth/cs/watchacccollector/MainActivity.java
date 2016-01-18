@@ -246,7 +246,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             double meanOfValleys = getMean(valleys);
             // Log.d("meanOfPeaks", String.valueOf(meanOfPeaks));
             // Log.d("meanOfValleys", String.valueOf(meanOfValleys));
-            if (meanOfPeaks > 10.1) {
+            if (meanOfPeaks > 10.15) {
                 //double upperThreshold = meanOfPeaks - 0.25 * (meanOfPeaks - meanOfValleys);
                 //double bottomThreshold = meanOfValleys + 0.25 * (meanOfPeaks - meanOfValleys);
                 double middleThreshold = (meanOfPeaks + meanOfValleys) / 2;
@@ -278,7 +278,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
 
             // Log.d("addSteps", String.valueOf(addSteps));
-            if(addSteps >= 5)
+            if(addSteps >= 4)
                 addSteps = 0;
 
             if (addSteps == 0) {
