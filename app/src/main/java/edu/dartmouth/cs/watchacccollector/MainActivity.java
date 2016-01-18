@@ -246,34 +246,37 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             double meanOfValleys = getMean(valleys);
             // Log.d("meanOfPeaks", String.valueOf(meanOfPeaks));
             // Log.d("meanOfValleys", String.valueOf(meanOfValleys));
-            if (meanOfPeaks < 11) {
-                windowSampleCount = 0;
-                continuousWindows = 0;
-                holdingSteps = 0;
-                return 0;
-            }
+            if (meanOfPeaks > 10.1) {
+                //double upperThreshold = meanOfPeaks - 0.25 * (meanOfPeaks - meanOfValleys);
+                //double bottomThreshold = meanOfValleys + 0.25 * (meanOfPeaks - meanOfValleys);
+                double middleThreshold = (meanOfPeaks + meanOfValleys) / 2;
+                //Log.d("upper", String.valueOf(upperThreshold));
+                //Log.d("bottom", String.valueOf(bottomThreshold));
 
-            //double upperThreshold = meanOfPeaks - 0.25 * (meanOfPeaks - meanOfValleys);
-            //double bottomThreshold = meanOfValleys + 0.25 * (meanOfPeaks - meanOfValleys);
-            double middleThreshold = (meanOfPeaks + meanOfValleys) / 2;
-            //Log.d("upper", String.valueOf(upperThreshold));
-            //Log.d("bottom", String.valueOf(bottomThreshold));
-
-            for (int i=0; i<smoothedMSamples.size(); i++) {
-                if (smoothedMSamples.get(i) > middleThreshold + 0.5) {
-                    if (hasAChance) {
-                        //System.out.println("x: " + i +"y: " + smoothedMSamples.get(i));
-                        if (smoothedMSamples.get(i) > 11)
-                            addSteps ++;
+                for (int i=0; i<smoothedMSamples.size(); i++) {
+                    if (smoothedMSamples.get(i) > middleThreshold + 0.5) {
+                        if (hasAChance) {
+                            //System.out.println("x: " + i +"y: " + smoothedMSamples.get(i));
+                            addSteps++;
+                        }
+                        hasAChance = false;
                     }
-                    hasAChance = false;
-                }
-                if (smoothedMSamples.get(i) < middleThreshold) {
-                    hasAChance = true;
+                    if (smoothedMSamples.get(i) < middleThreshold) {
+                        hasAChance = true;
+                    }
                 }
             }
             windowSampleCount = 0;
             hasAChanceWhenLastWindowEnds = hasAChance;
+            if (allSampleCount >= 5000) {
+                xSamples.clear();
+                ySamples.clear();
+                zSamples.clear();
+                mSamples.clear();
+                allSampleCount = 0;
+            }
+
+
             // Log.d("addSteps", String.valueOf(addSteps));
             if(addSteps >= 5)
                 addSteps = 0;
@@ -292,8 +295,11 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                 holdingSteps = 0;
                 return addSteps;
             }
+
         }
+
         return 0;
+
     }
 
 
