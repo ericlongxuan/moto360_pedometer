@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import edu.dartmouth.cs.watchacccollector.accelerometer.Filter;
-import edu.dartmouth.cs.watchacccollector.accelerometer.StatusReceiver;
 
 public class MainActivity extends WearableActivity implements SensorEventListener {
 
