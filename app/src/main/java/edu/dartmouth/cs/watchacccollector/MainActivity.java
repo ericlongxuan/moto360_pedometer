@@ -1,9 +1,14 @@
 package edu.dartmouth.cs.watchacccollector;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.wearable.activity.WearableActivity;
@@ -18,8 +23,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.concurrent.ArrayBlockingQueue;
 
 import edu.dartmouth.cs.watchacccollector.accelerometer.Filter;
+import edu.dartmouth.cs.watchacccollector.accelerometer.StatusReceiver;
 
 public class MainActivity extends WearableActivity implements SensorEventListener {
 
@@ -56,6 +63,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     /*
 	 * Various UI components
 	 */
+    private TextView statusView;
     private TextView stepsView;
     private CompoundButton accelButton;
 
@@ -71,6 +79,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     private ArrayList<Double> ySamples = null;
     private ArrayList<Double> zSamples = null;
     private ArrayList<Double> mSamples = null;
+    private boolean mIsReceiverRegistered = false;
+    private StatusReceiver mReceiver = null;
+    private Intent activitySensorServiceIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +102,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
+        statusView = (TextView)findViewById(R.id.textView);
         stepsView = (TextView)findViewById(R.id.stepCount);
         //Set the buttons and the text accordingly
         accelButton = (ToggleButton) findViewById(R.id.StartButton);
@@ -109,6 +121,30 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                     }
                 }
         );
+
+        activitySensorServiceIntent = new Intent(this, SensorsService.class);
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!mIsReceiverRegistered) {
+            if (mReceiver == null)
+                mReceiver = new StatusReceiver();
+            registerReceiver(mReceiver, new IntentFilter("edu.dartmouth.pedometer.CUSTOM_INTENT"));
+            mIsReceiverRegistered = true;
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mIsReceiverRegistered) {
+            unregisterReceiver(mReceiver);
+            mReceiver = null;
+            mIsReceiverRegistered = false;
+        }
     }
 
     @Override
@@ -164,6 +200,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         //double CUTOFF_FREQUENCY = 0.3;
         //filter = new Filter(CUTOFF_FREQUENCY);
         stepCount = 0;
+        Log.d("start", "start");
+        startService(activitySensorServiceIntent);
+        Log.d("start", "end");
     }
 
     /**
@@ -183,6 +222,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         mSamples.clear();
         allSampleCount = 0;
         sendUpdatedStepCountToUI();
+        stopService(activitySensorServiceIntent);
     }
 
     @Override
@@ -193,7 +233,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             sendAccelValuesToUI(accel[0], accel[1], accel[2]);
 
             /**
-             * TODO: Step Detection
+             * Step Detection
              */
             //First, Get filtered values
             double filtAcc[] = filter.getFilteredValues(accel[0], accel[1], accel[2]);
@@ -201,7 +241,6 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             stepCount += detectSteps(filtAcc[0], filtAcc[1], filtAcc[2]);
             //detectSteps() is not implemented
             sendUpdatedStepCountToUI();
-
         }
 
     }
@@ -398,5 +437,20 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     private void sendUpdatedStepCountToUI() {
         stepsView.setText("Steps=" + stepCount);
+    }
+
+    private void updateStatus(Intent intent){
+        String type = intent.getExtras().getString("type");
+        statusView.setText(type);
+    }
+
+    private class StatusReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if(action.equals("edu.dartmouth.pedometer.CUSTOM_INTENT")){
+                updateStatus(intent);
+            }
+        }
     }
 }

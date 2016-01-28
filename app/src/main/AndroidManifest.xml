@@ -29,6 +29,7 @@
             </intent-filter>
         </activity>
 
+        <service android:name="edu.dartmouth.cs.watchacccollector.SensorsService" />
     </application>
 
 </manifest>
