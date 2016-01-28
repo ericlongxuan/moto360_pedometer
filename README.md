@@ -8,7 +8,7 @@
 - Adjust the threshold to exclude minor perturbations which could be recognized as steps
 - test and make the estimation accurate
 
-## a pedometer for Android Wear
+## an activity classifier for Android Wear
 - collect data in different activities
 - use Weka to generate a decision tree class
 - use the classifier to recognize the activity
