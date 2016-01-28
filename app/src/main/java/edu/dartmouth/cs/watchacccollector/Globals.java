@@ -45,5 +45,7 @@ public abstract class Globals {
 
     public static final int NOTIFICATION_ID = 1;
 
+    public static final int VOTING_POOL_FULL_SIZE = 8;
+
 
 }

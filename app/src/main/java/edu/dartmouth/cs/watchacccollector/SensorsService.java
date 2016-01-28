@@ -19,6 +19,8 @@ import android.util.Log;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import meapsoft.FFT;
@@ -43,6 +45,8 @@ public class SensorsService extends Service implements SensorEventListener {
     private Instances mDataset;
     private OnSensorChangedTask mAsyncTask;
     private WekaWrapper wekaWrapper;
+    private Queue<Integer> votingPool;
+    private int[] votingScores;
 
     private static ArrayBlockingQueue<Double> mAccBuffer;
     public static final DecimalFormat mdf = new DecimalFormat("#.##");
@@ -97,6 +101,9 @@ public class SensorsService extends Service implements SensorEventListener {
 
         mAsyncTask = new OnSensorChangedTask();
         mAsyncTask.execute();
+
+        votingPool = new LinkedList<>();
+        votingScores = new int[ACTIVITIES.length];
 
         return START_NOT_STICKY;
     }
@@ -159,7 +166,17 @@ public class SensorsService extends Service implements SensorEventListener {
                         // Append max after frequency component
                         inst.setValue(Globals.ACCELEROMETER_BLOCK_CAPACITY, max);
                         inst.setDataset(mDataset);
-                        String activity = ACTIVITIES[(int)wekaWrapper.classifyInstance(inst)];
+                        int activityIndex = (int)wekaWrapper.classifyInstance(inst);
+
+                        if (votingPool.size() < Globals.VOTING_POOL_FULL_SIZE) {
+                            votingPool.offer(activityIndex);
+                        }
+                        else {
+                            int removeActivityIndex = votingPool.poll();
+                            votingScores[removeActivityIndex] --;
+                        }
+                        votingScores[activityIndex] ++;
+                        String activity = getActivityWithMaxVotingScore();
 
                         Intent intent = new Intent();
                         intent.setAction("edu.dartmouth.pedometer.CUSTOM_INTENT");
@@ -173,6 +190,16 @@ public class SensorsService extends Service implements SensorEventListener {
             }
         }
     }
+
+    private String getActivityWithMaxVotingScore(){
+        int activityIndex = 0;
+        for (int i=1; i<ACTIVITIES.length; i++) {
+            if (votingScores[i] > votingScores[activityIndex])
+                activityIndex = i;
+        }
+        return ACTIVITIES[activityIndex];
+    }
+
 
     public void onSensorChanged(SensorEvent event) {
 
